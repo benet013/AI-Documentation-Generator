@@ -1,3 +1,4 @@
+from django.http import FileResponse, Http404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -6,6 +7,16 @@ from .serializers import ReadmeSerializer
 from groq import Groq
 import zipfile, io, os
 
+
+class ReadmeDownloadView(APIView):
+    def get(self, request):
+        file_name = request.GET.get('file')
+        file_path = os.path.join("readmeFiles",file_name)
+        
+        if not os.path.exists(file_path):
+            return Http404("File not found")
+        
+        return FileResponse(open(file_path, 'rb'), as_attachment=True, filename=file_name)
 
 class ReadMeGeneratorView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -19,17 +30,32 @@ class ReadMeGeneratorView(APIView):
                 model="llama-3.1-8b-instant",
                 messages=[
                     {
-                        "role": "user",
-                        "content": (
-                            f"Give me a short, single-word name for this repository: {data}.\n\n"
-                            "Output only the name itself — no explanations, no punctuation, and no extra words. "
-                            "Do not include phrases like 'Here is a possible name' or 'I suggest'. "
-                            "Return just one clean word suitable for a README file name."
-                        ),
-                    }
-                ],
-                temperature=1,
-                stream=False,
+                    "role": "user",
+                    "content": (
+                        f"""
+                        You are a concise, creative naming assistant.
+
+                        Using ONLY the information below, infer a short, single-word name that best represents this software project.
+
+                        The input may contain either:
+                        1. Repository source files (between <<FILES_START>> and <<FILES_END>>), OR
+                        2. A JSON-like description such as {{ "appName": "TodoList", "techStacks": "Django, React" }}.
+
+                        Rules:
+                        - Respond with exactly **one single word**.
+                        - No explanations, no punctuation, no quotes, no extra text.
+                        - The word should be clean, readable, and suitable for a file name or project title.
+                        - If an app name is already given, return a simplified or slightly stylized form of it (e.g., "TodoList" → "Todo" or "Todolist").
+                        - If no clear name is present, infer one from the tech stack or purpose (e.g., "Blog", "Tracker", "Dashboard", "API", etc.).
+
+                        INPUT:
+
+                        <<FILES_START>>
+                        {data}
+                        <<FILES_END>>
+                        """
+                    )
+                }]
             )
             
             readme_completion = client.chat.completions.create(
@@ -38,11 +64,27 @@ class ReadMeGeneratorView(APIView):
                     {
                         "role": "user",
                         "content": (
-                            f"Generate a professional and complete `README.md` file for this repository: {data}.\n\n"
-                            "Output *only* the raw Markdown content. Do not include any introductory text like "
-                            "'Here is a possible README' or 'Generated README content'. "
-                            "Start your response directly with the first Markdown header (e.g. '# Project Name'). "
-                            "Do not wrap the Markdown in code fences."
+                                f"""
+                                You are a professional technical writer and senior engineer.
+                                Generate a complete, production-ready `README.md` file based on the provided input below.
+
+                                The input may contain either:
+                                1. Repository source files (between <<FILES_START>> and <<FILES_END>>), OR
+                                2. A JSON-like object describing the project (e.g., {{ "appName": "TodoList", "techStacks": "Django, React" }}).
+
+                                When generating the README:
+                                - Output *only* the raw Markdown content — no preamble, explanations, or filler.
+                                - Do NOT wrap the output in code fences.
+                                - Start immediately with the first header (e.g., '# TodoList').
+                                - If only metadata is provided (no files), infer the structure, usage, and setup instructions logically based on the tech stack.
+                                - If repository files are provided, base the README entirely on their content.
+
+                                FILES OR INPUT BELOW — do not add or remove these markers:
+
+                                <<FILES_START>>
+                                {data}
+                                <<FILES_END>>
+                                """
                         ),
                     }
                     ,
@@ -54,66 +96,59 @@ class ReadMeGeneratorView(APIView):
 
             nameFile = name_completion.choices[0].message.content
             readmeFile  = readme_completion.choices[0].message.content
-            print("Generated README content:", nameFile)
             print("___________________________________________")
             print("Generated README content:", readmeFile)
 
-            filepath = f"./readmeFiles/{nameFile}README.md"
+            filename = f'{nameFile}README.md'
+            filepath = f"./readmeFiles/{filename}"
             with open(filepath, "w") as f:
                 f.write(readmeFile)
             f.close()
+            
+            download_url = request.build_absolute_uri(f"/api/download/?file={filename}")
+            
+            return download_url
         
         print(request.data)
         
-        url = request.data['data']
-        if url:
-            try:
-                generateResult(url)
-                return Response({'message': 'ALl GOOD'}, status=status.HTTP_200_OK)
-            except Exception as exc:
-                import logging
-                logging.exception("Error generating from URL")
-                return Response({"error": "internal error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        serializer = ReadmeSerializer(data=request.data)
+        if serializer.is_valid():
+            zip_file = serializer.validated_data['zip_file']
+            with zipfile.ZipFile(zip_file, 'r') as z:
+                file_list = z.namelist()
+                print("Received ZIP file with contents:", file_list)
+                selected_files = []
+                for name in file_list:
+                    if any(name.lower().endswith(ext) for ext in (".png", ".jpg", ".gif", ".pdf", ".exe", ".dll", ".zip")):
+                        continue
+                    if name.endswith('/'):
+                        continue
+                    
+                    data = z.read(name)
+                    
+                    if len(data) > 200_000:
+                        continue
+                    
+                    try:
+                        text = data.decode('utf-8')
+                    except UnicodeDecodeError:
+                        continue
+                    
+                    selected_files.append((name, text))
             
-        else:
-            serializer = ReadmeSerializer(data=request.data)
-            if serializer.is_valid():
-                zip_file = serializer.validated_data['zip_file']
-                with zipfile.ZipFile(zip_file, 'r') as z:
-                    file_list = z.namelist()
-                    print("Received ZIP file with contents:", file_list)
-                    selected_files = []
-                    for name in file_list:
-                        if any(name.lower().endswith(ext) for ext in (".png", ".jpg", ".gif", ".pdf", ".exe", ".dll", ".zip")):
-                            continue
-                        if name.endswith('/'):
-                            continue
-                        
-                        data = z.read(name)
-                        
-                        if len(data) > 200_000:
-                            continue
-                        
-                        try:
-                            text = data.decode('utf-8')
-                        except UnicodeDecodeError:
-                            continue
-                        
-                        selected_files.append((name, text))
-                
-                def clip(s, max_chars=4000):
-                    return s[:max_chars]
-                
-                filesForPrompt = []
-                for name, text in selected_files:
-                    filesForPrompt.append(f"\n---\nFILE: {name}\n{clip(text, 8000)}")
-                
-                codeCorpus = "".join(filesForPrompt)
-                
-                generateResult(codeCorpus[:12000])
-                
-                return Response({'message': 'ALl GOOD'}, status=status.HTTP_200_OK)
+            def clip(s, max_chars=4000):
+                return s[:max_chars]
             
-            else:
-                return Response(serializer.errors, status=400)
+            filesForPrompt = []
+            for name, text in selected_files:
+                filesForPrompt.append(f"\n---\nFILE: {name}\n{clip(text, 8000)}")
+            
+            codeCorpus = "".join(filesForPrompt)
+            
+            download_url = generateResult(codeCorpus[:12000])
+            
+            return Response({'message': 'All good', 'download_url': download_url}, status=status.HTTP_200_OK)
         
+        else:
+            return Response(serializer.errors, status=400)
+    

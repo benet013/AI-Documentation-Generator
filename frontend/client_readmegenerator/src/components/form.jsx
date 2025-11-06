@@ -1,28 +1,24 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import api from "../api.js";
 
 function Form() {
-    const [inputValue, setInputValue] = useState("");
     const [selectedFile, setSelectedFile] = useState(null)
+    const [downloadUrl, setDownloadUrl] = useState("")
+    const fileInputRef = useRef(null);
 
-    const postData = async (data, isFile = false) => {
+    const postData = async (data) => {
         try {
             const response = await api.post(
-                '/api/requests/',
-                isFile ? data : { data },
-                isFile
-                    ? { headers: { "Content-Type": "multipart/form-data" } }
-                    : {}
+                '/api/requests/', data,
+                 { headers: { "Content-Type": "multipart/form-data" } }
             );
+            setDownloadUrl(response.data['download_url'])
             console.log("Response:", response.data);
         } catch (error) {
             console.error("Error posting data:", error);
         }
     };
-    const validateUrl = (url) => {
-        const urlPattern = /^(https?:\/\/)?(www\.)?(github\.com|gitlab\.com)\/.+$/i;
-        return urlPattern.test(url);
-    }
+
 
     const handleUpload = (e) => {
         e.preventDefault()
@@ -30,31 +26,24 @@ function Form() {
             const formData = new FormData();
             formData.append('zip_file', selectedFile);
 
-            postData(formData, true)
+            postData(formData)
+            setSelectedFile(null)
+
+            if (fileInputRef.current) {
+                fileInputRef.current.value = null;
+            }
         }
     }
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (inputValue.trim() === "") return;
-        if (!validateUrl(inputValue)) {
-            alert("Please enter a valid GitHub or GitLab repository URL.");
-            return;
-        }
-
-        postData(inputValue);
-        setInputValue("");
-        console.log("Form submitted", inputValue);
-    }
+    const isDownload = downloadUrl !== "";
 
     return (
         <div className="form-container">
-            <form onSubmit={selectedFile === null ? handleSubmit : handleUpload}>
+            <form onSubmit={handleUpload}>
                 <h2>Generate Your README.md</h2>
-                <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Enter your Repository Url" />
-                <input type="file" accept=".zip" onChange={(e) => setSelectedFile(e.target.files[0])} />
-
-                <button type="submit">Generate</button>
+                <label htmlFor="">Upload .zip file for your code</label>
+                <input type="file" accept=".zip" ref={fileInputRef} onChange={(e) => setSelectedFile(e.target.files[0])} />
+                <button className={isDownload? "download-btn" : "generate-btn"} type="submit">{isDownload ? <a href={downloadUrl} onClick={() => setDownloadUrl("")}>Download</a> : "Generate"}</button>
             </form>
         </div>
     )
