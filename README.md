@@ -50,7 +50,7 @@ AI-Documentation-Generator-main/
 │       │   ├── models.py
 │       │   ├── serializers.py
 │       │   └── urls.py
-│       ├── settings.py       |
+│       ├── settings.py
 │       ├── deployment_settings.py
 │       ├── urls.py
 │       ├── wsgi.py
@@ -180,7 +180,7 @@ _Seeking opportunities in software development and open-source collaboration._
 
 ---
 
-## 🪄xample Workflow
+## Example Workflow
 
 1. Visit the live deployed application on Render.  
 2. Upload your project’s `.zip` file from the UI.  
