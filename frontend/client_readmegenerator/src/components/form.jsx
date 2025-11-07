@@ -10,7 +10,7 @@ function Form() {
         try {
             const response = await api.post(
                 '/api/requests/', data,
-                 { headers: { "Content-Type": "multipart/form-data" } }
+                { headers: { "Content-Type": "multipart/form-data" } }
             );
             setDownloadUrl(response.data['download_url'])
             console.log("Response:", response.data);
@@ -39,12 +39,14 @@ function Form() {
 
     return (
         <div className="form-container">
-            <form onSubmit={handleUpload}>
-                <h2>Generate Your README.md</h2>
-                <label htmlFor="">Upload .zip file for your code</label>
-                <input type="file" accept=".zip" ref={fileInputRef} onChange={(e) => setSelectedFile(e.target.files[0])} />
-                <button className={isDownload? "download-btn" : "generate-btn"} type="submit">{isDownload ? <a href={downloadUrl} onClick={() => setDownloadUrl("")}>Download</a> : "Generate"}</button>
-            </form>
+            <div className="pop-up page">
+                <form onSubmit={handleUpload}>
+                    <h2>Generate Your README.md</h2>
+                    <label htmlFor="">Upload .zip file for your code</label>
+                    <input type="file" accept=".zip" ref={fileInputRef} onChange={(e) => setSelectedFile(e.target.files[0])} />
+                    <button className={isDownload ? "download-btn" : "generate-btn"} type="submit">{isDownload ? <a href={downloadUrl} onClick={() => setDownloadUrl("")}>Download</a> : "Generate"}</button>
+                </form>
+            </div>
         </div>
     )
 }
