@@ -40,6 +40,7 @@ Upload your project’s `.zip` file, click **Generate**, and instantly download 
 
 ## Project Structure
 
+``` bash
 AI-Documentation-Generator-main/
 │
 ├── backend/
@@ -70,6 +71,7 @@ AI-Documentation-Generator-main/
 │       └── index.html
 │
 └── README.md 
+```
 
 ## Setup Instruction 
 
