@@ -39,14 +39,12 @@ function Form() {
 
     return (
         <div className="form-container">
-            <div className="pop-up page">
-                <form onSubmit={handleUpload}>
-                    <h2>Generate Your README.md</h2>
-                    <label htmlFor="">Upload .zip file for your code</label>
-                    <input type="file" accept=".zip" ref={fileInputRef} onChange={(e) => setSelectedFile(e.target.files[0])} />
-                    <button className={isDownload ? "download-btn" : "generate-btn"} type="submit">{isDownload ? <a href={downloadUrl} onClick={() => setDownloadUrl("")}>Download</a> : "Generate"}</button>
-                </form>
-            </div>
+            <form onSubmit={handleUpload}>
+                <h2>Generate Your README.md</h2>
+                <label htmlFor="">Upload .zip file for your code</label>
+                <input type="file" accept=".zip" ref={fileInputRef} onChange={(e) => setSelectedFile(e.target.files[0])} />
+                <button className={isDownload ? "download-btn" : "generate-btn"} type="submit">{isDownload ? <a href={downloadUrl} onClick={() => setDownloadUrl("")}>Download</a> : "Generate"}</button>
+            </form>
         </div>
     )
 }

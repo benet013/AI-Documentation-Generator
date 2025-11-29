@@ -26,37 +26,6 @@ class ReadMeGeneratorView(APIView):
         def generateResult(data):
             api_key = os.getenv("documentation_generation_api_key")
             client = Groq(api_key=api_key)
-            name_completion = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[
-                    {
-                    "role": "user",
-                    "content": (
-                        f"""
-                        You are a concise, creative naming assistant.
-
-                        Using ONLY the information below, infer a short, single-word name that best represents this software project.
-
-                        The input may contain either:
-                        1. Repository source files (between <<FILES_START>> and <<FILES_END>>), OR
-                        2. A JSON-like description such as {{ "appName": "TodoList", "techStacks": "Django, React" }}.
-
-                        Rules:
-                        - Respond with exactly **one single word**.
-                        - No explanations, no punctuation, no quotes, no extra text.
-                        - The word should be clean, readable, and suitable for a file name or project title.
-                        - If an app name is already given, return a simplified or slightly stylized form of it (e.g., "TodoList" → "Todo" or "Todolist").
-                        - If no clear name is present, infer one from the tech stack or purpose (e.g., "Blog", "Tracker", "Dashboard", "API", etc.).
-
-                        INPUT:
-
-                        <<FILES_START>>
-                        {data}
-                        <<FILES_END>>
-                        """
-                    )
-                }]
-            )
             
             readme_completion = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
@@ -94,18 +63,16 @@ class ReadMeGeneratorView(APIView):
                 stream=False,
             )
 
-            nameFile = name_completion.choices[0].message.content
             readmeFile  = readme_completion.choices[0].message.content
             print("___________________________________________")
             print("Generated README content:", readmeFile)
 
-            filename = f'{nameFile}README.md'
-            filepath = f"./readmeFiles/{filename}"
+            filepath = f"./readmeFiles/README.md"
             with open(filepath, "w") as f:
                 f.write(readmeFile)
             f.close()
             
-            download_url = request.build_absolute_uri(f"/api/download/?file={filename}")
+            download_url = request.build_absolute_uri(f"/api/download/?file={'README.md'}")
             
             return download_url
         

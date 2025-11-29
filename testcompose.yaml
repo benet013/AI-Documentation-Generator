@@ -1,0 +1,13 @@
+services:
+  backend:
+    image: <Your_Backend_Image_Here>
+    ports:
+      - "8000:8000"
+    environment:
+      SECRET_KEY: <Your_Secret_Key_Here>
+      documentation_generation_api_key: <Your_API_Key_Here>
+
+  fronend:
+    image: <Your_Frontend_Image_Here>
+    ports:
+      - "5173:5173"
